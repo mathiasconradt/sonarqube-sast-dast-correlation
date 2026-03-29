@@ -236,6 +236,26 @@ This example can help you:
 - Compare ZAP findings with StackHawk (see sibling example)
 - Get ideas for reporting to your security team
 
+## Screenshots
+
+### Correlation Report (HTML Rendering)
+
+The generated markdown report rendered in a browser, showing the executive summary, correlated findings with ZAP attack payloads, and detailed taint flow analysis:
+
+![Correlation Report HTML](correlation-report-html.png)
+
+### SonarQube Tagged Issues
+
+Correlated issues tagged with `dast-detected` in SonarQube, with detailed ZAP correlation comments including attack payloads:
+
+![SonarQube DAST-Detected Issues](sonarqube-dast-detected-issues.png)
+
+### Complete Example View
+
+Full correlation analysis showing SonarQube SAST findings mapped to OWASP ZAP DAST results with exploitation evidence:
+
+![SonarQube ZAP Example](sonarqube-zap-example.png)
+
 ## Related Examples
 
 - **SonarQube + StackHawk**: See `../sonarqube-stackhawk-example/` for comparison

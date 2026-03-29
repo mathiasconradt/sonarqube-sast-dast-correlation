@@ -47,6 +47,8 @@ htmlcov/
 *.tmp
 *.log
 *.bak
+*.before
+*.after
 
 # Output files (examples are kept in examples/ directory)
 sonar_issues.json

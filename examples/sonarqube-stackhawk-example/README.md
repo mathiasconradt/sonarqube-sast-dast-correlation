@@ -166,6 +166,26 @@ This example can help you:
 - Understand why correlation rates are typically low (2-5%)
 - Get ideas for reporting to your security team
 
+## Screenshots
+
+### Correlation Report (HTML Rendering)
+
+The generated markdown report rendered in a browser, showing the executive summary, correlated findings, and detailed taint flow analysis:
+
+![Correlation Report HTML](correlation-report-html.png)
+
+### SonarQube Tagged Issues
+
+Correlated issues tagged with `dast-detected` in SonarQube, making it easy for development teams to prioritize fixes:
+
+![SonarQube DAST-Detected Issues](sonarqube-dast-detected-issues.png)
+
+### Complete Example View
+
+Full correlation analysis showing SonarQube SAST findings mapped to StackHawk DAST results:
+
+![SonarQube StackHawk Example](sonarqube-stackhawk-example.png)
+
 ## Related Examples
 
 - **SonarQube + ZAP**: See `../sonarqube-zap-example/` (coming soon)
