@@ -98,15 +98,26 @@ Agent with prompt:
 "Perform in-depth correlation analysis between SAST findings from sonar_issues.json
 and DAST findings from {selected_sarif_file}.
 
+**MANDATORY RULE: ONLY create correlations between SAST and DAST findings that are the SAME vulnerability category.**
+**This rule ALWAYS applies - there are NO exceptions.**
+
 Read both files and identify correlations by:
-1. Matching vulnerability types (SQL injection, XSS, etc.)
+1. **MANDATORY FIRST STEP:** Verify vulnerability categories match
+   - SAST and DAST findings MUST be the same category (SQL Injection, XSS, Path Traversal, etc.)
+   - Use CWE numbers if available in both sources (exact or related CWE match)
+   - If CWE not available, extract category from rule names, titles, descriptions
+   - Examples of VALID correlations: SQL Injection ↔ SQL Injection, XSS ↔ XSS, Path Traversal ↔ Path Traversal
+   - Examples of INVALID correlations: SQL Injection ↔ XSS, Path Traversal ↔ CSRF, XSS ↔ Security Headers
+   - **SKIP to next finding** if categories don't match - DO NOT create a correlation
 2. Matching code paths to endpoints (e.g., SearchRepository.java → /search endpoint)
 3. Analyzing taint flows from SAST and matching to exploited endpoints in DAST
 
+**Remember: Better to return ZERO correlations than to create even ONE false correlation between different vulnerability types.**
+
 For each correlation found, provide:
-- SAST issue details (rule, file, line, message, taint flow)
-- DAST issue details (rule, URI, method, severity)
-- Detailed correlation reasoning explaining WHY they match
+- SAST issue details (rule, file, line, message, taint flow, CWE if available)
+- DAST issue details (rule, URI, method, severity, CWE if available)
+- Detailed correlation reasoning explaining WHY they match (including category/CWE match)
 - Confidence level (high/medium/low)
 
 Output to correlations.json with structure:
@@ -120,12 +131,16 @@ Output to correlations.json with structure:
       'sast_message': '...',
       'sast_severity': '...',
       'sast_flow_summary': '...',
+      'sast_cwe': '...' (if available, e.g., 'CWE-89'),
+      'sast_category': '...' (vulnerability type: 'SQL Injection', 'XSS', etc.),
       'dast_rule_id': '...',
       'dast_uri': '...',
       'dast_method': '...',
       'dast_message': '...',
       'dast_level': '...',
-      'correlation_reasoning': 'Detailed explanation...',
+      'dast_cwe': '...' (if available in SARIF, e.g., 'CWE-89'),
+      'dast_category': '...' (vulnerability type extracted from rule/title),
+      'correlation_reasoning': 'Detailed explanation including why categories match...',
       'confidence': 'high|medium|low'
     }
   ],
@@ -136,28 +151,50 @@ Output to correlations.json with structure:
 }"
 ```
 
-**Correlation Strategies the Agent should use:**
+**Correlation Strategies the Agent MUST use:**
 
-1. **Vulnerability Type Matching** (PRIMARY):
-   - SQL Injection: `javasecurity:S3649`, `java:S2077` ↔ `sql-injection`
-   - XSS: `javasecurity:S5131` ↔ `cross-site-scripting-reflected`
-   - Path Traversal: `javasecurity:S2083` ↔ `path-traversal`
-   - XXE: `java:S2755` ↔ `xxe`
+**⚠️ MANDATORY REQUIREMENT - ALWAYS ENFORCED: Only correlate findings with matching vulnerability categories!**
 
-2. **Endpoint/Component Mapping**:
+**This is NOT conditional - this requirement applies to EVERY correlation attempt, regardless of how many correlations are found.**
+
+0. **Category/CWE Validation** (MANDATORY FIRST STEP FOR EVERY POTENTIAL CORRELATION):
+   - **ALWAYS verify that SAST and DAST findings are the SAME vulnerability type/category**
+   - This verification happens BEFORE any other matching logic
+   - Check CWE numbers first if both sources provide them (e.g., CWE-89 for SQL Injection)
+   - If CWE not available, extract category from: rule IDs, rule names, issue titles, descriptions, tags
+   - **ABSOLUTE RULE: DO NOT correlate different vulnerability types**
+   - **DO NOT correlate** SQL Injection with XSS, even if they're in the same file
+   - **DO NOT correlate** Path Traversal with CSRF, even if they share an endpoint
+   - **DO NOT correlate** Command Injection with Security Headers, ever
+   - **REJECT and SKIP** any correlation where categories don't match, even if endpoints align perfectly
+   - Example VALID matches: SQL Injection ↔ SQL Injection, XSS ↔ XSS, Path Traversal ↔ Path Traversal
+   - Example INVALID matches (NEVER create these): SQL Injection ↔ XSS, CSRF ↔ Path Traversal, XSS ↔ Security Headers
+
+1. **Vulnerability Type Matching** (PRIMARY - after category validation):
+   - SQL Injection: `javasecurity:S3649`, `java:S2077` ↔ `sql-injection`, CWE-89
+   - XSS: `javasecurity:S5131` ↔ `cross-site-scripting-reflected`, `cross-site-scripting`, CWE-79
+   - Path Traversal: `javasecurity:S2083` ↔ `path-traversal`, `directory-traversal`, CWE-22
+   - XXE: `java:S2755` ↔ `xxe`, `xml-external-entity`, CWE-611
+   - Command Injection: ↔ `command-injection`, CWE-78
+   - CSRF: ↔ `csrf`, CWE-352
+
+2. **Endpoint/Component Mapping** (SECONDARY):
    - Match controller class names to URI paths
    - Example: `SearchRepository.java` used by `HomeController POST "/"` ↔ DAST finding at `POST /`
    - Example: `ProductController.java GET "/products/direct"` ↔ DAST finding at `GET /products/direct`
 
-3. **Taint Flow Analysis**:
+3. **Taint Flow Analysis** (TERTIARY):
    - Examine SAST taint flows (source → sink)
    - Match source (@RequestParam, @PathVariable) to DAST request parameters
-   - Match sink (SQL query, HTML output) to DAST vulnerability type
+   - Match sink (SQL query, HTML output, file operations) to DAST vulnerability type
+   - Verify sink type aligns with vulnerability category (e.g., SQL sink → SQL Injection category)
 
-4. **Confidence Scoring**:
-   - HIGH: Same vulnerability type + matching endpoint/component + taint flow aligns
-   - MEDIUM: Same vulnerability type + partial component match
-   - LOW: Same vulnerability type only
+4. **Confidence Scoring** (only applies to correlations with matching categories):
+   - **PREREQUISITE**: Same vulnerability category (if categories don't match, REJECT - don't score)
+   - HIGH: Same vulnerability category + matching endpoint/component + taint flow aligns
+   - MEDIUM: Same vulnerability category + partial component match OR endpoint match
+   - LOW: Same vulnerability category only, no endpoint/component match
+   - **NO CORRELATION**: Different vulnerability categories (immediately reject, do not create correlation)
 
 ### 5. Generate Markdown Report
 
@@ -318,12 +355,9 @@ Issues found only by dynamic analysis (may indicate runtime-specific vulnerabili
 
 - If SonarQube API is unreachable, inform the user and offer to work with existing `sonar_issues.json`
 - If no SARIF files are found, inform the user and ask for a file path
-- **IMPORTANT**: If correlation produces no matches, the Agent analysis may not have been thorough enough
-  - Common correlations to look for: SQL injection, XSS, path traversal, XXE
-  - Re-run the Agent with more specific instructions to find matching vulnerability types
-  - Don't assume "no correlations" - usually there ARE correlations if both tools ran on the same app
 - Validate SARIF file format before processing
 - Remember to filter out `external_StackHawk:` or similar imported issues from SAST data
+- If correlation produces unexpectedly zero matches, verify that SAST and DAST scanned the same application (the most common reason is they scanned different apps or found completely different vulnerability categories)
 
 ## Output Files
 
@@ -363,18 +397,21 @@ When executing this skill:
          ```
       2. For each issue found:
          - Get the issue details including comments
-         - Find and delete comments that contain "DAST Correlation" (any icon variant) using:
+         - **IMPORTANT:** Find and delete **ALL** comments that contain "DAST Correlation" (search for 🔴, 🟠, 🟡, 🔵 icons or "DAST Correlation" text)
+         - **CRITICAL:** Collect ALL matching comment keys FIRST, then delete them ALL in sequence
+         - Do NOT stop after deleting the first matching comment - an issue may have multiple old correlation comments that all need to be removed
+         - For each matching comment, delete using:
            ```bash
            curl -u "$SONAR_TOKEN:" -X POST "{SONARQUBE_URL}/api/issues/delete_comment" \
              -d "comment={comment_key}"
            ```
-         - Remove the 'dast-detected' tag using:
+         - After deleting all correlation comments, remove the 'dast-detected' tag using:
            ```bash
            curl -u "$SONAR_TOKEN:" -X POST "{SONARQUBE_URL}/api/issues/set_tags" \
              -d "issue={issue_key}" \
              -d "tags="
            ```
-      3. Report how many issues were cleared
+      3. Report how many issues were cleared and how many total comments were deleted
     - **If user declines to clear:**
       - Skip clearing steps and proceed directly to Step 10c
       - Inform user that new tags will be added alongside any existing tags
@@ -418,12 +455,14 @@ User: "Compare SonarQube and StackHawk results"
 
 ## Key Success Factors
 
+✅ **CRITICAL: Validate category/CWE matching FIRST** - Only correlate SAST and DAST findings if they are the SAME vulnerability type (SQL Injection ↔ SQL Injection, NOT SQL Injection ↔ XSS). Use CWE numbers or extract category from rule names/titles/descriptions. Reject correlations with different categories.
 ✅ **Check environment variables FIRST** - Use `env | grep -i sonar` to find `SONAR_TOKEN`, `SONARQUBE_TOKEN`, `SONARQUBE_URL`, etc. before reading config files
 ✅ **Filter out imported DAST issues** from SonarQube data before analysis
 ✅ **Use Agent tool** for correlation - it provides deeper reasoning than simple scripts
-✅ **Match vulnerability types precisely** - SQL injection to sql-injection, XSS to cross-site-scripting
-✅ **Trace code paths to endpoints** - SearchRepository.java → POST / endpoint
+✅ **Match vulnerability types precisely** - SQL injection to sql-injection, XSS to cross-site-scripting (category must match!)
+✅ **Trace code paths to endpoints** - SearchRepository.java → POST / endpoint (secondary to category matching)
 ✅ **Use severity-based icons** - 🔴 BLOCKER/CRITICAL, 🟠 MAJOR/HIGH, 🟡 MINOR/MEDIUM, 🔵 INFO/LOW (NOT based on vulnerability type)
 ✅ **Emphasize correlated findings** - these have highest confidence and priority
 ✅ **Provide direct links** to both SonarQube and DAST tool UIs for each issue
 ✅ **Use detected credentials automatically** - When all required config values are found (URL, token, projectKey), use them without asking the user
+✅ **Prevent false correlations** - Better to have NO correlation than a wrong correlation between different vulnerability types

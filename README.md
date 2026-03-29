@@ -1,5 +1,9 @@
 # SonarQube SAST-DAST Correlation Skill
 
+> **⚠️ EXPERIMENTAL SKILL - USE AT YOUR OWN RISK**
+>
+> This is an experimental skill and repository. While it has been tested in development environments, it should be used with caution in production settings. The skill makes API calls to SonarQube and may modify issue tags and comments. Always review the actions before confirming, and test in a non-production environment first. The authors are not responsible for any unintended consequences or data loss.
+
 A Claude Code skill that intelligently correlates Static Application Security Testing (SAST) findings from SonarQube with Dynamic Application Security Testing (DAST) findings from SARIF files (StackHawk, ZAP, etc.) to generate comprehensive security correlation reports.
 
 ## Overview
