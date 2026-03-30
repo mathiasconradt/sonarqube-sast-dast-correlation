@@ -148,7 +148,7 @@ We welcome contributions of correlation examples! To add an example:
 ## Questions?
 
 - Open an issue in the main repository
-- See the main [README.md](../README.md) for more information
+- See the main [README.md](../../README.md) for more information
 - Check [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines
 
 ---

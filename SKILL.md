@@ -650,3 +650,13 @@ User: "Compare SonarQube and StackHawk results"
    - Don't correlate different endpoints
    - Don't correlate different HTTP methods
    - When in doubt, read the source code to verify
+
+## Additional Resources
+
+For more detailed information, refer to:
+
+- [Contributing Guidelines](references/CONTRIBUTING.md) - How to contribute to this skill
+- [License](references/LICENSE) - MIT License details
+- [Examples Overview](references/examples/README.md) - Collection of example correlation reports
+  - [SonarQube + ZAP Example](references/examples/sonarqube-zap-example/README.md) - Java Spring Boot application example
+  - [SonarQube + StackHawk Example](references/examples/sonarqube-stackhawk-example/README.md) - Java Spring Boot application example
