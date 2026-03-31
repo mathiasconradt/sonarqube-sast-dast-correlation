@@ -1,6 +1,6 @@
 {
   "name": "mathiasconradt/sonarqube-sast-dast-correlation",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "private": true,
   "summary": "Correlate SAST findings from SonarQube with DAST findings from SARIF files (StackHawk, ZAP, etc.) and generate a comprehensive security report",
   "skills": {
